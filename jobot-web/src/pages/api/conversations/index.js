@@ -1,7 +1,12 @@
-import { verifyServerSideAuth } from "@/network";
+import { getChatResponseHeaders, verifyServerSideAuth } from "@/network";
 import { createServerSupabaseClient } from "@supabase/auth-helpers-nextjs";
+import { createClient } from "@supabase/supabase-js";
 
 async function getAllConversations(supabase, user, res) {
+  const headers = getChatResponseHeaders();
+  for (const key in headers) {
+    res.setHeader(key, headers[key]);
+  }
   const { data, error } = await supabase
     .from("conversations")
     .select("*, messages (id, created_at, role, content)")
@@ -69,7 +74,12 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     return getAllConversations(supabase, user, res);
   } else if (req.method === "POST") {
-    return createNewConversation(supabase, user, req, res);
+    const supabaseService = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    return createNewConversation(supabaseService, user, req, res);
   } else {
     res.status(405).json({ message: "Method Not Allowed" });
   }

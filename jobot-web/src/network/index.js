@@ -96,7 +96,18 @@ export async function updateUserProfile(supabase, profileData) {
 }
 
 export async function verifyServerSideAuth(supabase, headers) {
-  const authHeader = headers["authorization"];
+
+  let authHeader;
+
+  try {
+    authHeader = headers.get('authorization');
+  } catch (e) {
+    try {
+      authHeader = headers['authorization'];
+    } catch (e2) {
+      console.log("header not found")
+    }
+  }
 
   if (authHeader) {
     const supabaseService = createClient(
@@ -106,30 +117,28 @@ export async function verifyServerSideAuth(supabase, headers) {
     const possibleKey = authHeader.substring(7);
 
     const { data: apiKey, error: err2 } = await supabaseService
-      .from("apikeys, user: users(*)")
-      .select("*")
+      .from("apikeys")
+      .select("*, profile: profiles(*)")
       .eq("key", possibleKey)
       .single();
 
     if (err2 || !apiKey) {
       console.error("Failed to validate API key", err2);
     } else {
-      return apiKey.user;
+      return apiKey.profile;
+    }
+  } else {
+    const {
+      data: { user },
+      error: err1,
+    } = await supabase.auth.getUser();
+
+    if (err1 || !user) {
+      console.error("Failed to get current user", err1);
+    } else {
+      return user;
     }
   }
-
-  const {
-    data: { user },
-    error: err1,
-  } = await supabase.auth.getUser();
-
-  if (err1 || !user) {
-    console.error("Failed to get current user", err1);
-  } else {
-    return user;
-  }
-
-  return false;
 }
 
 export function getChatResponseHeaders() {
